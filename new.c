@@ -46,10 +46,10 @@ void TIMER1_IRQHandler(void) {
 void I2S_IRQHandler(void) {
 	if(Chip_I2S_GetRxLevel(LPC_I2S) > 0) {
 		uint32_t data = Chip_I2S_Receive(LPC_I2S);
-		uint8_t byte1 = ring_buffer.buffer[ring_buffer.read_index] >> 24;
-		uint8_t byte2 = ring_buffer.buffer[ring_buffer.read_index] >> 16;
-		uint8_t byte3 = ring_buffer.buffer[ring_buffer.read_index] >> 8;
-		uint8_t byte4 = ring_buffer.buffer[ring_buffer.read_index];
+		uint8_t byte1 = data >> 24;
+		uint8_t byte2 = data >> 16;
+		uint8_t byte3 = data >> 8;
+		uint8_t byte4 = data;
 		Chip_UART_Send(LPC_UART0, &byte1, 1);
 		Chip_UART_Send(LPC_UART0, &byte2, 1);
 		Chip_UART_Send(LPC_UART0, &byte3, 1);
