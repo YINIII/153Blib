@@ -14,8 +14,8 @@ const char stop_flag[] = "stp";
 
 typedef struct ring_buff {
 	uint32_t buffer[256];
-	uint8_t read_index = 0;
-	uint8_t write_index = 0;
+	uint8_t read_index;
+	uint8_t write_index;
 } Ring_Buffer_t;
 
 static Ring_Buffer_t ring_buffer;
@@ -57,6 +57,7 @@ void I2S_IRQHandler(void) {
 	}
 //	while ((ring_buff_get_status(&ring_buffer) != BUFFER_FULL) && (Chip_I2S_GetRxLevel(LPC_I2S) > 0)) {
 //		ring_buffer.buffer[ring_buffer.write_index++] = Chip_I2S_Receive(LPC_I2S);
+//		//printf("%d\n", ring_buffer.buffer[ring_buffer.write_index - 1]);
 //	}
 //	while (ring_buff_get_status(&ring_buffer) != BUFFER_EMPTY) {
 //		uint8_t byte1 = ring_buffer.buffer[ring_buffer.read_index] >> 24;
@@ -101,7 +102,7 @@ void GPIO_IRQHandler(void)
 int main(void) {
 
 	I2S_AUDIO_FORMAT_T audio_Confg;
-	audio_Confg.SampleRate = 48000;
+	audio_Confg.SampleRate = 44100;
 	/* Select audio data is 2 channels (1 is mono, 2 is stereo) */
 	audio_Confg.ChannelNumber = 2;
 	/* Select audio data is 16 bits */
@@ -147,14 +148,17 @@ int main(void) {
 
 	Board_UART_Init(LPC_UART0);
 	Chip_UART_Init(LPC_UART0);
-	Chip_UART_SetBaud(LPC_UART0, 2000000);
+	Chip_UART_SetBaud(LPC_UART0, 115200);
 	Chip_UART_ConfigData(LPC_UART0, (UART_LCR_WLEN8 | UART_LCR_SBS_1BIT));
 	Chip_UART_IntEnable(LPC_UART0, (UART_IER_RBRINT | UART_IER_RLSINT));
 	NVIC_EnableIRQ(UART0_IRQn);
-	NVIC_SetPriority(UART0_IRQn, 1);
+	//NVIC_SetPriority(UART0_IRQn, 1);
 	Chip_UART_TXEnable(LPC_UART0);
 	Chip_UART_SetupFIFOS(LPC_UART0, (UART_FCR_FIFO_EN | UART_FCR_RX_RS |
 							UART_FCR_TX_RS | UART_FCR_TRG_LEV3));
+
+//	Chip_I2S_RxStart(LPC_I2S);
+//	Chip_I2S_TxStart(LPC_I2S);
 
 	while(1) {
 		__WFI();
