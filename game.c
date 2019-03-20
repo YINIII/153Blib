@@ -28,8 +28,9 @@
 #include "joystick.h"
 #include "board.h"
 
-char begin_flag;
-
+const char begin_flag;
+static volatile bool fDebouncing;
+static volatile bool blink;
 
 /******************************************************************************
  * Typedefs and defines
@@ -51,14 +52,14 @@ void TIMER0_IRQHandler(void) {
   	Chip_TIMER_Disable(LPC_TIMER0);
   	Chip_TIMER_Reset(LPC_TIMER0);
   	Chip_TIMER_ClearMatch(LPC_TIMER0,0);
-  }
+ }
 
 
 void TIMER1_IRQHandler(void) {
   	Board_LED_Toggle(0);
   	Chip_TIMER_Reset(LPC_TIMER1);
   	Chip_TIMER_ClearMatch(LPC_TIMER1,1);
-  }
+ }
 
 
 void GPIO_IRQHandler(void)
