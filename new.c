@@ -13,9 +13,9 @@ const char begin_flag[] = "bgn";
 const char stop_flag[] = "stp";
 
 typedef struct ring_buff {
-	uint32_t buffer[256];
-	uint8_t read_index;
-	uint8_t write_index;
+	uint32_t buffer[16000];
+	uint16_t read_index;
+	uint16_t write_index;
 } Ring_Buffer_t;
 
 static Ring_Buffer_t ring_buffer;
@@ -44,21 +44,22 @@ void TIMER1_IRQHandler(void) {
 }
 
 void I2S_IRQHandler(void) {
-	if(Chip_I2S_GetRxLevel(LPC_I2S) > 0) {
-		uint32_t data = Chip_I2S_Receive(LPC_I2S);
-		uint8_t byte1 = data >> 24;
-		uint8_t byte2 = data >> 16;
-		uint8_t byte3 = data >> 8;
-		uint8_t byte4 = data;
-		Chip_UART_Send(LPC_UART0, &byte1, 1);
-		Chip_UART_Send(LPC_UART0, &byte2, 1);
-		Chip_UART_Send(LPC_UART0, &byte3, 1);
-		Chip_UART_Send(LPC_UART0, &byte4, 1);
-	}
-//	while ((ring_buff_get_status(&ring_buffer) != BUFFER_FULL) && (Chip_I2S_GetRxLevel(LPC_I2S) > 0)) {
-//		ring_buffer.buffer[ring_buffer.write_index++] = Chip_I2S_Receive(LPC_I2S);
-//		//printf("%d\n", ring_buffer.buffer[ring_buffer.write_index - 1]);
+//	if(Chip_I2S_GetRxLevel(LPC_I2S) > 0) {
+//		uint32_t data = Chip_I2S_Receive(LPC_I2S);
+//		uint8_t byte1 = data >> 24;
+//		uint8_t byte2 = data >> 16;
+//		uint8_t byte3 = data >> 8;
+//		uint8_t byte4 = data;
+//		Chip_UART_Send(LPC_UART0, &byte1, 1);
+//		Chip_UART_Send(LPC_UART0, &byte2, 1);
+//		Chip_UART_Send(LPC_UART0, &byte3, 1);
+//		Chip_UART_Send(LPC_UART0, &byte4, 1);
 //	}
+	while ((ring_buff_get_status(&ring_buffer) != BUFFER_FULL) && (Chip_I2S_GetRxLevel(LPC_I2S) > 0)) {
+		ring_buffer.buffer[ring_buffer.write_index++] = Chip_I2S_Receive(LPC_I2S);
+		ring_buffer.write_index = ring_buffer.write_index % 16000;
+		//printf("%d\n", ring_buffer.buffer[ring_buffer.write_index - 1]);
+	}
 //	while (ring_buff_get_status(&ring_buffer) != BUFFER_EMPTY) {
 //		uint8_t byte1 = ring_buffer.buffer[ring_buffer.read_index] >> 24;
 //		uint8_t byte2 = ring_buffer.buffer[ring_buffer.read_index] >> 16;
@@ -69,8 +70,14 @@ void I2S_IRQHandler(void) {
 //		Chip_UART_Send(LPC_UART0, &byte3, 1);
 //		Chip_UART_Send(LPC_UART0, &byte4, 1);
 //		ring_buffer.read_index++;
+//		ring_buffer.read_index = ring_buffer.read_index % 16000;
 //	}
+	while (ring_buff_get_status(&ring_buffer) != BUFFER_EMPTY) {
+		Chip_UART_Send(LPC_UART0, &ring_buffer.buffer[ring_buffer.read_index++], 4);
+		ring_buffer.read_index = ring_buffer.read_index % 16000;
+	}
 //	while ((ring_buff_get_status(&ring_buffer) != BUFFER_EMPTY) && (Chip_I2S_GetTxLevel(LPC_I2S) < 8)) {
+//		Chip_UART_Send(LPC_UART0, &ring_buffer.buffer[ring_buffer.read_index], 4);
 //		Chip_I2S_Send(LPC_I2S, ring_buffer.buffer[ring_buffer.read_index++]);
 //	}
 }
@@ -114,15 +121,13 @@ int main(void) {
 	Board_Init();
 	Board_LED_Set(0, false);
 
-	Board_Audio_Init(LPC_I2S, UDA1380_MIC_IN_LR);
+	Board_Audio_Init(LPC_I2S, MIC);
 	Chip_I2S_Init(LPC_I2S);
 	Chip_I2S_RxConfig(LPC_I2S, &audio_Confg);
-//	Chip_I2S_TxConfig(LPC_I2S, &audio_Confg);
+	Chip_I2S_TxConfig(LPC_I2S, &audio_Confg);
 	Chip_I2S_DisableMute(LPC_I2S);
-	Chip_I2S_RxStop(LPC_I2S);
-	Chip_I2S_TxStop(LPC_I2S);
 	Chip_I2S_Int_RxCmd(LPC_I2S, ENABLE, 4);
-//	Chip_I2S_Int_TxCmd(LPC_I2S, ENABLE, 4);
+	Chip_I2S_Int_TxCmd(LPC_I2S, DISABLE, 4);
 	NVIC_ClearPendingIRQ(I2S_IRQn);
 	NVIC_EnableIRQ(I2S_IRQn);
 
@@ -151,13 +156,13 @@ int main(void) {
 	Chip_UART_SetBaud(LPC_UART0, 115200);
 	Chip_UART_ConfigData(LPC_UART0, (UART_LCR_WLEN8 | UART_LCR_SBS_1BIT));
 	Chip_UART_IntEnable(LPC_UART0, (UART_IER_RBRINT | UART_IER_RLSINT));
-	NVIC_EnableIRQ(UART0_IRQn);
-	//NVIC_SetPriority(UART0_IRQn, 1);
+//	NVIC_EnableIRQ(UART0_IRQn);
+//	NVIC_SetPriority(UART0_IRQn, 1);
 	Chip_UART_TXEnable(LPC_UART0);
 	Chip_UART_SetupFIFOS(LPC_UART0, (UART_FCR_FIFO_EN | UART_FCR_RX_RS |
 							UART_FCR_TX_RS | UART_FCR_TRG_LEV3));
 
-//	Chip_I2S_RxStart(LPC_I2S);
+	Chip_I2S_RxStop(LPC_I2S);
 //	Chip_I2S_TxStart(LPC_I2S);
 
 	while(1) {
